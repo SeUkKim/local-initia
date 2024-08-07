@@ -1,6 +1,6 @@
 ARG INITIA_VERSION=v0.1.1-beta.5
 
-FROM ghcr.io/initia-labs/initiad:v0.2.24-stage-2
+FROM ghcr.io/initia-labs/initiad:v0.4.1
 
 USER root
 COPY --chmod=755 entrypoint.sh /usr/local/bin/entrypoint.sh
@@ -12,12 +12,11 @@ RUN set -eux &&\
     initiad init local-initia --home /app --chain-id local-initia && \
     echo '{"height": "0","round": 0,"step": 0}' > /app/data/priv_validator_state.json
 
-COPY ./initia/* /app/config/
+COPY ./initia/genesis.json \
+     ./initia/priv_validator_key.json \
+     /app/config/
 
-RUN sed -e '/^\[api\]/,/\[rosetta\]/ s|^enable *=.*|enable = true|' \
-        -e '/^\[api\]/,/\[rosetta\]/ s|^swagger *=.*|swagger = true|' \ 
-        -e '/^\[api\]/,/\[rosetta\]/ s|^enabled-unsafe-cors *=.*|enabled-unsafe-cors = true|' \ 
-        -i /app/config/app.toml
+ENTRYPOINT [ "entrypoint.sh" ]
 
 # Expose necessary ports
 EXPOSE 1317 9090 9091 26656 26657

@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile.initia
       args:
         INITIA_VERSION: ${INITIA_VERSION}
-    image: ghcr.io/initia-labs/initiad:v0.2.24-stage-2
+    image: ghcr.io/initia-labs/initiad:v0.4.1
     hostname: initia
     pull_policy: always
     platform: linux/arm64
@@ -21,29 +21,29 @@ services:
       - "9090:9090"
       - "9091:9091"
       - "26657:26657"
-  minitiad:
-    build:
-      context: .
-      dockerfile: Dockerfile.minitia
-      args:
-        MINITIA_VERSION: ${MINITIA_VERSION}
-    image: ghcr.io/initia-labs/minimove:v0.3.4
-    hostname: minitia
-    pull_policy: always
-    platform: linux/arm64
-    volumes:
-      - minitia:/app
-    networks:
-      - default
-    ports:
-      - "1318:1317"
-      - "8081:8080"
-      - "9190:9090"
-      - "9191:9091"
-      - "26658:26657"
+  # minitiad:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.minitia
+  #     args:
+  #       MINITIA_VERSION: ${MINITIA_VERSION}
+  #   image: ghcr.io/initia-labs/minimove:v0.3.4
+  #   hostname: minitia
+  #   pull_policy: always
+  #   platform: linux/arm64
+  #   volumes:
+  #     - minitia:/app
+  #   networks:
+  #     - default
+  #   ports:
+  #     - "1318:1317"
+  #     - "8081:8080"
+  #     - "9190:9090"
+  #     - "9191:9091"
+  #     - "26658:26657"
 volumes:
   initia:
-  minitia:
+  # minitia:
 
 networks:
   default:
