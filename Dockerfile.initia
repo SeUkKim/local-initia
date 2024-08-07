@@ -21,4 +21,9 @@ ENTRYPOINT [ "entrypoint.sh" ]
 # Expose necessary ports
 EXPOSE 1317 9090 9091 26656 26657
 
-CMD initiad start --home /app
+CMD initiad start --home /app \
+    --rpc.laddr tcp://0.0.0.0:26657 \
+    --api.enable true \
+    --api.swagger true \
+    --api.address tcp://0.0.0.0:1317 \
+    --api.enabled-unsafe-cors true
