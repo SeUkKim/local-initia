@@ -6,6 +6,10 @@
 # "$HOME/.cometbft" by default, but could be changed via $CMTHOME env variable
 # or --home cmd flag.
 
+# The version of the CometBFT binary that created or
+# last modified the config file. Do not modify this.
+version = "0.38.9"
+
 #######################################################################
 ###                   Main Base Config Options                      ###
 #######################################################################
@@ -16,14 +20,6 @@ proxy_app = "tcp://127.0.0.1:26658"
 
 # A custom human readable name for this node
 moniker = "local-initia"
-
-# If this node is many blocks behind the tip of the chain, BlockSync
-# allows them to catchup quickly by downloading blocks in parallel
-# and verifying their commits
-#
-# Deprecated: this key will be removed and BlockSync will be enabled 
-# unconditionally in the next major release.
-block_sync = true
 
 # Database backend: goleveldb | cleveldb | boltdb | rocksdb | badgerdb
 # * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
@@ -172,6 +168,11 @@ experimental_close_on_slow_client = false
 # See https://github.com/tendermint/tendermint/issues/3435
 timeout_broadcast_tx_commit = "10s"
 
+# Maximum number of requests that can be sent in a batch
+# If the value is set to '0' (zero-value), then no maximum batch size will be
+# enforced for a JSON-RPC batch request.
+max_request_batch_size = 10
+
 # Maximum size of request body, in bytes
 max_body_bytes = 1000000
 
@@ -204,11 +205,9 @@ pprof_laddr = "localhost:6060"
 # Address to listen for incoming connections
 laddr = "tcp://0.0.0.0:26656"
 
-# Address to advertise to peers for them to dial
-# If empty, will use the same port as the laddr,
-# and will introspect on the listener or use UPnP
-# to figure out the address. ip and port are required
-# example: 159.89.10.97:26656
+# Address to advertise to peers for them to dial. If empty, will use the same
+# port as the laddr, and will introspect on the listener to figure out the
+# address. IP and port are required. Example: 159.89.10.97:26656
 external_address = ""
 
 # Comma separated list of seed nodes to connect to
@@ -216,9 +215,6 @@ seeds = ""
 
 # Comma separated list of nodes to keep persistent connections to
 persistent_peers = ""
-
-# UPNP port forwarding
-upnp = false
 
 # Path to address book
 addr_book_file = "config/addrbook.json"
@@ -240,16 +236,16 @@ unconditional_peer_ids = ""
 persistent_peers_max_dial_period = "0s"
 
 # Time to wait before flushing messages out on the connection
-flush_throttle_timeout = "100ms"
+flush_throttle_timeout = "10ms"
 
 # Maximum size of a message packet payload, in bytes
-max_packet_msg_payload_size = 1024
+max_packet_msg_payload_size = 1000000
 
 # Rate at which packets can be sent, in bytes/second
-send_rate = 5120000
+send_rate = 20480000
 
 # Rate at which packets can be received, in bytes/second
-recv_rate = 5120000
+recv_rate = 20480000
 
 # Set true to enable the peer-exchange reactor
 pex = true
@@ -275,22 +271,54 @@ dial_timeout = "3s"
 #######################################################
 [mempool]
 
-# Mempool version to use:
-#   1) "v0" - (default) FIFO mempool.
-#   2) "v1" - prioritized mempool (deprecated; will be removed in the next release).
-version = "v0"
+# The type of mempool for this node to use.
+#
+#  Possible types:
+#  - "flood" : concurrent linked list mempool with flooding gossip protocol
+#  (default)
+#  - "nop"   : nop-mempool (short for no operation; the ABCI app is responsible
+#  for storing, disseminating and proposing txs). "create_empty_blocks=false" is
+#  not supported.
+type = "flood"
 
+# Recheck (default: true) defines whether CometBFT should recheck the
+# validity for all remaining transaction in the mempool after a block.
+# Since a block affects the application state, some transactions in the
+# mempool may become invalid. If this does not apply to your application,
+# you can disable rechecking.
 recheck = true
+
+# recheck_timeout is the time the application has during the rechecking process
+# to return CheckTx responses, once all requests have been sent. Responses that
+# arrive after the timeout expires are discarded. It only applies to
+# non-local ABCI clients and when recheck is enabled.
+#
+# The ideal value will strongly depend on the application. It could roughly be estimated as the
+# average size of the mempool multiplied by the average time it takes the application to validate one
+# transaction. We consider that the ABCI application runs in the same location as the CometBFT binary
+# so that the recheck duration is not affected by network delays when making requests and receiving responses.
+recheck_timeout = "1s"
+
+# Broadcast (default: true) defines whether the mempool should relay
+# transactions to other peers. Setting this to false will stop the mempool
+# from relaying transactions to other peers until they are included in a
+# block. In other words, if Broadcast is disabled, only the peer you send
+# the tx to will see it until it is included in a block.
 broadcast = true
+
+# WalPath (default: "") configures the location of the Write Ahead Log
+# (WAL) for the mempool. The WAL is disabled by default. To enable, set
+# WalPath to where you want the WAL to be written (e.g.
+# "data/mempool.wal").
 wal_dir = ""
 
 # Maximum number of transactions in the mempool
-size = 5000
+size = 1000
 
 # Limit the total size of all txs in the mempool.
 # This only accounts for raw transactions (e.g. given 1MB transactions and
 # max_txs_bytes=5MB, mempool will only accept 5 transactions).
-max_txs_bytes = 1073741824
+max_txs_bytes = 10737418240
 
 # Size of the cache (used to filter transactions we saw earlier) in transactions
 cache_size = 10000
@@ -302,28 +330,27 @@ keep-invalid-txs-in-cache = false
 
 # Maximum size of a single transaction.
 # NOTE: the max size of a tx transmitted over the network is {max_tx_bytes}.
-max_tx_bytes = 1048576
+max_tx_bytes = 2048576
 
 # Maximum size of a batch of transactions to send to a peer
 # Including space needed by encoding (one varint per transaction).
 # XXX: Unused due to https://github.com/tendermint/tendermint/issues/5796
 max_batch_bytes = 0
 
-# ttl-duration, if non-zero, defines the maximum amount of time a transaction
-# can exist for in the mempool.
-#
-# Note, if ttl-num-blocks is also defined, a transaction will be removed if it
-# has existed in the mempool at least ttl-num-blocks number of blocks or if it's
-# insertion time into the mempool is beyond ttl-duration.
-ttl-duration = "0s"
-
-# ttl-num-blocks, if non-zero, defines the maximum number of blocks a transaction
-# can exist for in the mempool.
-#
-# Note, if ttl-duration is also defined, a transaction will be removed if it
-# has existed in the mempool at least ttl-num-blocks number of blocks or if
-# it's insertion time into the mempool is beyond ttl-duration.
-ttl-num-blocks = 0
+# Experimental parameters to limit gossiping txs to up to the specified number of peers.
+# We use two independent upper values for persistent and non-persistent peers.
+# Unconditional peers are not affected by this feature.
+# If we are connected to more than the specified number of persistent peers, only send txs to
+# ExperimentalMaxGossipConnectionsToPersistentPeers of them. If one of those
+# persistent peers disconnects, activate another persistent peer.
+# Similarly for non-persistent peers, with an upper limit of
+# ExperimentalMaxGossipConnectionsToNonPersistentPeers.
+# If set to 0, the feature is disabled for the corresponding group of peers, that is, the
+# number of active connections to that group of peers is not bounded.
+# For non-persistent peers, if enabled, a value of 10 is recommended based on experimental
+# performance results using the default P2P configuration.
+experimental_max_gossip_connections_to_persistent_peers = 0
+experimental_max_gossip_connections_to_non_persistent_peers = 0
 
 #######################################################
 ###         State Sync Configuration Options        ###
@@ -367,7 +394,7 @@ chunk_fetchers = "4"
 [blocksync]
 
 # Block Sync version to use:
-# 
+#
 # In v0.37, v1 and v2 of the block sync protocols were deprecated.
 # Please use v0 instead.
 #
@@ -386,17 +413,17 @@ timeout_propose = "3s"
 # How much timeout_propose increases with each round
 timeout_propose_delta = "500ms"
 # How long we wait after receiving +2/3 prevotes for “anything” (ie. not a single block or nil)
-timeout_prevote = "1s"
+timeout_prevote = "500ms"
 # How much the timeout_prevote increases with each round
-timeout_prevote_delta = "500ms"
+timeout_prevote_delta = "0s"
 # How long we wait after receiving +2/3 precommits for “anything” (ie. not a single block or nil)
-timeout_precommit = "1s"
+timeout_precommit = "500ms"
 # How much the timeout_precommit increases with each round
-timeout_precommit_delta = "500ms"
+timeout_precommit_delta = "0s"
 # How long we wait after committing a block, before starting on the new
 # height (this gives us a chance to receive some more precommits, even
 # though we already have +2/3).
-timeout_commit = "5s"
+timeout_commit = "2s"
 
 # How many blocks to look back to check existence of the node's consensus votes before joining consensus
 # When non-zero, the node will panic upon restart
@@ -412,7 +439,7 @@ create_empty_blocks = true
 create_empty_blocks_interval = "0s"
 
 # Reactor sleep duration parameters
-peer_gossip_sleep_duration = "100ms"
+peer_gossip_sleep_duration = "30ms"
 peer_query_maj23_sleep_duration = "2s"
 
 #######################################################
@@ -447,6 +474,14 @@ indexer = "kv"
 # The PostgreSQL connection configuration, the connection format:
 #   postgresql://<user>:<password>@<host>:<port>/<db>?<opts>
 psql-conn = ""
+
+# RetainHeight sets the minimum tx height offsets from the current block being committed,
+# such that all txs past this offset are pruned.
+#
+# If set to 0, the index will retain all tx index.
+# Else the index will retain txs and blocks with heights >= (current block height - RetainHeight)
+# except "tx.hash" and "tx.height" and "block.height" which are always retained.
+retain-height = 0
 
 #######################################################
 ###       Instrumentation Configuration Options     ###
