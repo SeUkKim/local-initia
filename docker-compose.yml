@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.initia
-      args:
+      # args:
         # INITIA_VERSION: ${INITIA_VERSION}
     image: ghcr.io/initia-labs/initiad:v0.4.1
     hostname: initia
