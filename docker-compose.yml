@@ -1,12 +1,10 @@
-version: "3.8"
-
 services:
   initiad:
     build:
       context: .
       dockerfile: Dockerfile.initia
       args:
-        INITIA_VERSION: ${INITIA_VERSION}
+        # INITIA_VERSION: ${INITIA_VERSION}
     image: ghcr.io/initia-labs/initiad:v0.4.1
     hostname: initia
     pull_policy: always
