@@ -1,0 +1,49 @@
+version: "3"
+
+services:
+  initiad:
+    build:
+      context: .
+      dockerfile: Dockerfile.initia
+    image: ghcr.io/initia-labs/initiad:v0.4.2
+    logging:
+      driver: "json-file"
+    hostname: initia
+    pull_policy: always
+    platform: linux/arm64
+    volumes:
+      - initia:/app
+    networks:
+      - default
+    ports:
+      - "1317:1317"
+      - "8080:8080"
+      - "9090:9090"
+      - "9091:9091"
+      - "26657:26657"
+  minitiad:
+    build:
+      context: .
+      dockerfile: Dockerfile.minitia
+    image: ghcr.io/initia-labs/minimove:v0.4.0
+    logging:
+      driver: "json-file"
+    hostname: minitia
+    pull_policy: always
+    platform: linux/arm64
+    volumes:
+      - minitia:/app
+    networks:
+      - default
+    ports:
+      - "1318:1317"
+      - "8081:8080"
+      - "9190:9090"
+      - "9191:9091"
+      - "26658:26657"
+volumes:
+  initia:
+  minitia:
+
+networks:
+  default:
